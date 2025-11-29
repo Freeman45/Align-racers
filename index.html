@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Aligned Layer Racers (made by freeguyx247)</title>
+    <title>Aligned Layer Racers</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
     <style>
@@ -387,6 +387,23 @@
             cursor: pointer;
         }
 
+        /* Play/Pause Controls */
+        .play-control {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 50;
+            background: rgba(0,0,0,0.6);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--neon-green);
+            cursor: pointer;
+        }
+
         /* Modal Overrides */
         #game-over-modal .card {
             border-color: var(--danger);
@@ -514,6 +531,11 @@
                 </div>
             </div>
             
+            <!-- Play/Pause Control -->
+            <div class="play-control" id="play-pause-btn">
+                <i class="fas fa-pause"></i>
+            </div>
+            
             <!-- Sound Control -->
             <div class="sound-control" id="sound-toggle">
                 <i class="fas fa-volume-up"></i>
@@ -578,6 +600,7 @@
         // --- Game Config & State ---
         const Game = {
             active: false,
+            paused: false,
             score: 0,
             speed: 8, // Increased base speed
             baseSpeed: 8,
@@ -614,6 +637,7 @@
             tutorial: document.getElementById('tutorial'),
             username: document.getElementById('username'),
             soundToggle: document.getElementById('sound-toggle'),
+            playPauseBtn: document.getElementById('play-pause-btn'),
             gameSound: document.getElementById('game-sound'),
             playerNameDisplay: document.getElementById('player-name-display'),
             proofsCollectedDisplay: document.getElementById('proofs-collected'),
@@ -647,12 +671,32 @@
             switchPage(els.gameOver, els.intro);
         });
 
+        // Play/Pause toggle
+        els.playPauseBtn.addEventListener('click', () => {
+            if (Game.gameOverModalActive) return; // Prevent play/pause when modal is active
+            
+            Game.paused = !Game.paused;
+            if (Game.paused) {
+                els.playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                // Pause game sound
+                els.gameSound.pause();
+            } else {
+                els.playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                // Resume game sound if enabled
+                if (Game.soundEnabled) {
+                    els.gameSound.play();
+                }
+            }
+        });
+
         // Sound toggle
         els.soundToggle.addEventListener('click', () => {
             if (Game.gameOverModalActive) return; // Prevent sound toggle when modal is active
             Game.soundEnabled = !Game.soundEnabled;
             if (Game.soundEnabled) {
-                els.gameSound.play();
+                if (!Game.paused) {
+                    els.gameSound.play();
+                }
                 els.soundToggle.innerHTML = '<i class="fas fa-volume-up"></i>';
             } else {
                 els.gameSound.pause();
@@ -746,6 +790,7 @@ Play now and beat my score!
         function startGame() {
             // Reset State
             Game.active = true;
+            Game.paused = false;
             Game.score = 0;
             Game.speed = Game.baseSpeed;
             Game.obstacles = [];
@@ -767,6 +812,7 @@ Play now and beat my score!
             els.gameOver.classList.remove('active');
             els.game.classList.add('active');
             els.tutorial.style.display = 'block';
+            els.playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
             
             // Start game sound
             if (Game.soundEnabled) {
@@ -787,6 +833,10 @@ Play now and beat my score!
 
         function gameLoop(timestamp) {
             if (!Game.active || Game.gameOverModalActive) return;
+            if (Game.paused) {
+                requestAnimationFrame(gameLoop);
+                return;
+            }
 
             const deltaTime = timestamp - Game.lastTime;
             Game.lastTime = timestamp;
@@ -924,10 +974,8 @@ Play now and beat my score!
         }
 
         function updateDifficulty() {
-            // Gradually increase speed more aggressively
-            if(Game.speed < 20) {
-                Game.speed += 0.002; 
-            }
+            // Remove speed cap - speed can increase indefinitely
+            Game.speed += 0.002; 
         }
 
         function gameOver() {
@@ -957,7 +1005,7 @@ Play now and beat my score!
 
         // Touch Events
         els.touchLayer.addEventListener('touchstart', (e) => {
-            if(!Game.active || Game.gameOverModalActive) return;
+            if(!Game.active || Game.gameOverModalActive || Game.paused) return;
             e.preventDefault(); // Stop scrolling
             touchStartX = e.touches[0].clientX;
             carStartX = Game.playerX;
@@ -968,7 +1016,7 @@ Play now and beat my score!
         }, {passive: false});
 
         els.touchLayer.addEventListener('touchmove', (e) => {
-            if(!Game.active || !isDragging || Game.gameOverModalActive) return;
+            if(!Game.active || !isDragging || Game.gameOverModalActive || Game.paused) return;
             e.preventDefault();
             
             const currentX = e.touches[0].clientX;
@@ -995,14 +1043,14 @@ Play now and beat my score!
 
         // Mouse Fallback for Desktop Testing
         els.touchLayer.addEventListener('mousedown', (e) => {
-            if(!Game.active || Game.gameOverModalActive) return;
+            if(!Game.active || Game.gameOverModalActive || Game.paused) return;
             touchStartX = e.clientX;
             carStartX = Game.playerX;
             isDragging = true;
         });
         
         els.touchLayer.addEventListener('mousemove', (e) => {
-            if(!Game.active || !isDragging || Game.gameOverModalActive) return;
+            if(!Game.active || !isDragging || Game.gameOverModalActive || Game.paused) return;
             const currentX = e.clientX;
             const deltaX = currentX - touchStartX;
             const percentChange = (deltaX / Game.roadWidth) * 100 * 1.5;
