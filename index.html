@@ -238,8 +238,8 @@
 
         .obstacle {
             position: absolute;
-            width: 50px;
-            height: 50px;
+            width: 60px;
+            height: 100px;
             z-index: 9;
         }
         
@@ -348,23 +348,26 @@
             object-fit: contain;
         }
 
-        .car-icon.locked {
-            opacity: 0.5;
-            cursor: not-allowed;
-            position: relative;
-        }
-
-        .car-icon.locked::after {
-            content: "🔒";
-            position: absolute;
-            font-size: 12px;
-            bottom: -5px;
-            right: -5px;
-        }
-
         .car-icon.active {
             border-color: var(--neon-green);
             box-shadow: 0 0 10px var(--neon-green);
+        }
+
+        /* Sound Controls */
+        .sound-control {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 50;
+            background: rgba(0,0,0,0.6);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--neon-green);
+            cursor: pointer;
         }
 
         /* Modal Overrides */
@@ -418,10 +421,10 @@
                 <div class="car-icon active" data-car="car1">
                     <img src="car1.png" alt="Car 1">
                 </div>
-                <div class="car-icon locked" data-car="car2" data-cost="10">
+                <div class="car-icon" data-car="car2">
                     <img src="car2.png" alt="Car 2">
                 </div>
-                <div class="car-icon locked" data-car="car3" data-cost="20">
+                <div class="car-icon" data-car="car3">
                     <img src="car3.png" alt="Car 3">
                 </div>
             </div>
@@ -460,6 +463,11 @@
                 </div>
             </div>
             
+            <!-- Sound Control -->
+            <div class="sound-control" id="sound-toggle">
+                <i class="fas fa-volume-up"></i>
+            </div>
+            
             <div class="controls-hint" id="tutorial">
                 <i class="fas fa-arrows-alt-h"></i> Slide left/right to dodge
             </div>
@@ -482,13 +490,18 @@
         </div>
     </div>
 
+    <!-- Audio Element -->
+    <audio id="game-sound" loop>
+        <source src="zksound.mp3" type="audio/mp3">
+    </audio>
+
     <script>
         // --- Game Config & State ---
         const Game = {
             active: false,
             score: 0,
-            speed: 5,
-            baseSpeed: 5,
+            speed: 8, // Increased base speed
+            baseSpeed: 8,
             laneWidth: 0, // Calculated dynamically
             roadWidth: 0,
             playerX: 0, // 0 to 100 percentage
@@ -499,7 +512,8 @@
             spawnTimer: 0,
             difficultyTimer: 0,
             currentCar: 'car1',
-            unlockedCars: ['car1']
+            unlockedCars: ['car1', 'car2', 'car3'], // All cars unlocked by default
+            soundEnabled: true
         };
 
         // --- DOM Elements ---
@@ -515,7 +529,9 @@
             roadTexture: document.querySelector('.road-texture'),
             speedDisplay: document.getElementById('speed-display'),
             tutorial: document.getElementById('tutorial'),
-            username: document.getElementById('username')
+            username: document.getElementById('username'),
+            soundToggle: document.getElementById('sound-toggle'),
+            gameSound: document.getElementById('game-sound')
         };
 
         // --- Authentication / Navigation ---
@@ -536,6 +552,18 @@
             switchPage(els.gameOver, els.intro);
         });
 
+        // Sound toggle
+        els.soundToggle.addEventListener('click', () => {
+            Game.soundEnabled = !Game.soundEnabled;
+            if (Game.soundEnabled) {
+                els.gameSound.play();
+                els.soundToggle.innerHTML = '<i class="fas fa-volume-up"></i>';
+            } else {
+                els.gameSound.pause();
+                els.soundToggle.innerHTML = '<i class="fas fa-volume-mute"></i>';
+            }
+        });
+
         function switchPage(from, to) {
             from.classList.remove('active');
             to.classList.add('active');
@@ -544,21 +572,7 @@
         // --- Car Selection Logic ---
         document.querySelectorAll('.car-icon').forEach(icon => {
             icon.addEventListener('click', function() {
-                if (this.classList.contains('locked')) {
-                    const cost = parseInt(this.getAttribute('data-cost'));
-                    if (Game.score >= cost) {
-                        // Unlock car
-                        this.classList.remove('locked');
-                        Game.unlockedCars.push(this.getAttribute('data-car'));
-                        saveUserData();
-                        selectCar(this);
-                    } else {
-                        // Show message about needing more points
-                        alert(`You need ${cost} points to unlock this car!`);
-                    }
-                } else {
-                    selectCar(this);
-                }
+                selectCar(this);
             });
         });
 
@@ -580,14 +594,11 @@
             if (userData) {
                 const data = JSON.parse(userData);
                 Game.score = data.score || 0;
-                Game.unlockedCars = data.unlockedCars || ['car1'];
+                Game.unlockedCars = data.unlockedCars || ['car1', 'car2', 'car3']; // All cars unlocked
                 
-                // Update car icons
+                // Update car icons - all should be unlocked
                 document.querySelectorAll('.car-icon').forEach(icon => {
-                    const carType = icon.getAttribute('data-car');
-                    if (Game.unlockedCars.includes(carType)) {
-                        icon.classList.remove('locked');
-                    }
+                    icon.classList.remove('locked');
                 });
             }
         }
@@ -625,6 +636,11 @@
             els.game.classList.add('active');
             els.tutorial.style.display = 'block';
             
+            // Start game sound
+            if (Game.soundEnabled) {
+                els.gameSound.play();
+            }
+            
             // Wait for layout to calculate dimensions
             setTimeout(() => {
                 Game.roadWidth = els.road.offsetWidth;
@@ -657,7 +673,9 @@
 
             // 2. Spawn Objects
             Game.spawnTimer += deltaTime;
-            if (Game.spawnTimer > (2000 / speedMultiplier)) { // Spawn faster as we speed up
+            // Increase spawn rate as game progresses
+            const spawnInterval = Math.max(500, 2000 / (speedMultiplier * 1.5));
+            if (Game.spawnTimer > spawnInterval) {
                 spawnObject();
                 Game.spawnTimer = 0;
             }
@@ -702,7 +720,11 @@
         function spawnObject() {
             // Determine lane (10% to 90% width)
             const lanePos = 10 + Math.random() * 80;
-            const isProof = Math.random() > 0.6; // 40% chance of proof
+            const isProof = Math.random() > 0.7; // 30% chance of proof, 70% chance of obstacle
+            
+            // Increase obstacle frequency over time
+            const gameTime = performance.now() - Game.lastTime;
+            const obstacleChance = Math.min(0.8, 0.5 + (gameTime / 60000) * 0.3); // Increases over 1 minute
 
             if (isProof) {
                 const el = document.createElement('div');
@@ -715,7 +737,17 @@
                 const el = document.createElement('div');
                 el.className = 'obstacle';
                 el.style.left = `${lanePos}%`;
-                el.innerHTML = '<img src="obstacles.png" alt="Obstacle">';
+                
+                // Randomly choose between obstacle types
+                const obstacleType = Math.random();
+                if (obstacleType < 0.33) {
+                    el.innerHTML = '<img src="obstacles.png" alt="Obstacle">';
+                } else if (obstacleType < 0.66) {
+                    el.innerHTML = '<img src="car1.png" alt="Car Obstacle">';
+                } else {
+                    el.innerHTML = '<img src="car2.png" alt="Car Obstacle">';
+                }
+                
                 els.road.appendChild(el);
                 Game.obstacles.push({ el: el, y: -100, x: lanePos });
             }
@@ -751,9 +783,9 @@
         }
 
         function updateDifficulty() {
-            // Gradually increase speed
-            if(Game.speed < 15) {
-                Game.speed += 0.001; 
+            // Gradually increase speed more aggressively
+            if(Game.speed < 20) {
+                Game.speed += 0.002; 
             }
         }
 
@@ -761,6 +793,10 @@
             Game.active = false;
             els.finalScore.innerText = Game.score;
             els.gameOver.classList.add('active');
+            
+            // Stop game sound
+            els.gameSound.pause();
+            els.gameSound.currentTime = 0;
             
             // Save user data
             saveUserData();
