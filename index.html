@@ -666,12 +666,36 @@
         document.getElementById('restart-btn').addEventListener('click', () => {
             // Reset the game over modal state
             Game.gameOverModalActive = false;
+            
+            // Stop the current game loop
+            Game.active = false;
+            if (Game.animationFrame) {
+                cancelAnimationFrame(Game.animationFrame);
+                Game.animationFrame = null;
+            }
+            
+            // Reset game state
+            resetGameState();
+            
+            // Start a new game
             startGame();
         });
         
         document.getElementById('menu-btn').addEventListener('click', () => {
             // Reset the game over modal state
             Game.gameOverModalActive = false;
+            
+            // Stop the game loop completely
+            Game.active = false;
+            if (Game.animationFrame) {
+                cancelAnimationFrame(Game.animationFrame);
+                Game.animationFrame = null;
+            }
+            
+            // Reset game state
+            resetGameState();
+            
+            // Switch back to intro page
             switchPage(els.gameOver, els.intro);
         });
 
@@ -906,7 +930,7 @@
                 Game.roadWidth = els.road.offsetWidth;
                 updatePlayerPosition();
                 Game.lastTime = performance.now();
-                requestAnimationFrame(gameLoop);
+                Game.animationFrame = requestAnimationFrame(gameLoop);
                 
                 // Hide tutorial after 3s
                 setTimeout(() => els.tutorial.style.display = 'none', 3000);
@@ -914,9 +938,12 @@
         }
 
         function gameLoop(timestamp) {
-            if (!Game.active || Game.gameOverModalActive) return;
+            // Safety check - if game is not active, don't continue the loop
+            if (!Game.active) return;
+            
+            if (Game.gameOverModalActive) return;
             if (Game.paused) {
-                requestAnimationFrame(gameLoop);
+                Game.animationFrame = requestAnimationFrame(gameLoop);
                 return;
             }
 
@@ -926,7 +953,7 @@
             updatePhysics(deltaTime);
             updateDifficulty();
             
-            requestAnimationFrame(gameLoop);
+            Game.animationFrame = requestAnimationFrame(gameLoop);
         }
 
         function updatePhysics(deltaTime) {
@@ -1076,6 +1103,36 @@
             
             // Save user data
             saveUserData();
+        }
+
+        // --- Reset Game State Function ---
+        function resetGameState() {
+            // Clear all game objects
+            const oldObjs = document.querySelectorAll('.obstacle, .proof');
+            oldObjs.forEach(o => o.remove());
+            
+            // Reset game variables
+            Game.obstacles = [];
+            Game.proofs = [];
+            Game.score = 0;
+            Game.speed = Game.baseSpeed;
+            Game.playerX = 50;
+            Game.paused = false;
+            Game.spawnTimer = 0;
+            Game.difficultyTimer = 0;
+            
+            // Reset UI elements
+            els.score.innerText = '0';
+            els.speedDisplay.innerText = '100';
+            els.playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+            
+            // Stop and reset game sound
+            els.gameSound.pause();
+            els.gameSound.currentTime = 0;
+            
+            // Reset player position and rotation
+            updatePlayerPosition();
+            els.player.style.transform = `translateX(-50%) rotate(0deg)`;
         }
 
         // --- IMPROVED TOUCH CONTROLS ---
