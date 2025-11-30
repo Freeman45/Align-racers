@@ -580,7 +580,7 @@
                     <i class="fab fa-twitter"></i> Share on X
                 </button>
                 <button id="download-results" class="btn btn-download">
-                    <i class="fas fa-download"></i> Download
+                    <i class="fas fa-download"></i> Download Card
                 </button>
             </div>
             
@@ -595,6 +595,9 @@
     <audio id="game-sound" loop>
         <source src="zksound.mp3" type="audio/mp3">
     </audio>
+
+    <!-- Hidden canvas for generating result card -->
+    <canvas id="result-canvas" style="display: none;"></canvas>
 
     <script>
         // --- Game Config & State ---
@@ -644,7 +647,8 @@
             topSpeedDisplay: document.getElementById('top-speed'),
             timeSurvivedDisplay: document.getElementById('time-survived'),
             shareTwitter: document.getElementById('share-twitter'),
-            downloadResults: document.getElementById('download-results')
+            downloadResults: document.getElementById('download-results'),
+            resultCanvas: document.getElementById('result-canvas')
         };
 
         // --- Authentication / Navigation ---
@@ -711,30 +715,108 @@
             window.open(url, '_blank');
         });
 
-        // Download results
+        // Download results as JPG card
         els.downloadResults.addEventListener('click', () => {
-            const resultsText = `
-ALIGNED LAYER RACERS - GAME RESULTS
-
-Player: ${els.username.value}
-Final Score: ${Game.score}
-Proofs Collected: ${Game.proofsCollected}
-Top Speed: ${Game.topSpeed}
-Time Survived: ${Math.floor((performance.now() - Game.gameStartTime) / 1000)}s
-
-Play now and beat my score!
-            `.trim();
-            
-            const blob = new Blob([resultsText], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `aligned-layer-racers-results-${els.username.value}.txt`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            generateResultsCard();
         });
+
+        function generateResultsCard() {
+            const canvas = els.resultCanvas;
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size to match the introbarner.jpg
+            canvas.width = 800;
+            canvas.height = 450;
+            
+            // Load the background image
+            const backgroundImg = new Image();
+            backgroundImg.crossOrigin = "anonymous";
+            backgroundImg.src = 'introbarner.jpg';
+            
+            backgroundImg.onload = function() {
+                // Draw the background image
+                ctx.drawImage(backgroundImg, 0, 0, canvas.width, canvas.height);
+                
+                // Add a semi-transparent overlay for better text readability
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Set text styles
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#ffffff';
+                
+                // Draw game title
+                ctx.font = 'bold 40px Orbitron';
+                ctx.fillText('ALIGNED LAYER RACERS', canvas.width / 2, 60);
+                
+                // Draw player name
+                ctx.font = '24px Rajdhani';
+                ctx.fillText(`DRIVER: ${els.username.value.toUpperCase()}`, canvas.width / 2, 100);
+                
+                // Draw stats
+                ctx.font = 'bold 32px Orbitron';
+                ctx.fillText(`FINAL SCORE: ${Game.score}`, canvas.width / 2, 170);
+                
+                ctx.font = '24px Rajdhani';
+                ctx.fillText(`Proofs Collected: ${Game.proofsCollected}`, canvas.width / 2, 220);
+                ctx.fillText(`Top Speed: ${Game.topSpeed}`, canvas.width / 2, 260);
+                ctx.fillText(`Time Survived: ${Math.floor((performance.now() - Game.gameStartTime) / 1000)}s`, canvas.width / 2, 300);
+                
+                // Draw footer
+                ctx.font = '18px Rajdhani';
+                ctx.fillText('Play Aligned Layer Racers and beat my score!', canvas.width / 2, 380);
+                
+                // Convert canvas to image and trigger download
+                const dataURL = canvas.toDataURL('image/jpeg', 0.9);
+                const link = document.createElement('a');
+                link.download = `aligned-layer-racers-${els.username.value}-${Game.score}.jpg`;
+                link.href = dataURL;
+                link.click();
+            };
+            
+            backgroundImg.onerror = function() {
+                // If the image fails to load, create a simple colored background
+                ctx.fillStyle = '#0a2f0a';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Add gradient for visual appeal
+                const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+                gradient.addColorStop(0, '#0a2f0a');
+                gradient.addColorStop(1, '#004d29');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw game title
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 40px Orbitron';
+                ctx.fillText('ALIGNED LAYER RACERS', canvas.width / 2, 60);
+                
+                // Draw player name
+                ctx.font = '24px Rajdhani';
+                ctx.fillText(`DRIVER: ${els.username.value.toUpperCase()}`, canvas.width / 2, 100);
+                
+                // Draw stats
+                ctx.font = 'bold 32px Orbitron';
+                ctx.fillText(`FINAL SCORE: ${Game.score}`, canvas.width / 2, 170);
+                
+                ctx.font = '24px Rajdhani';
+                ctx.fillText(`Proofs Collected: ${Game.proofsCollected}`, canvas.width / 2, 220);
+                ctx.fillText(`Top Speed: ${Game.topSpeed}`, canvas.width / 2, 260);
+                ctx.fillText(`Time Survived: ${Math.floor((performance.now() - Game.gameStartTime) / 1000)}s`, canvas.width / 2, 300);
+                
+                // Draw footer
+                ctx.font = '18px Rajdhani';
+                ctx.fillText('Play Aligned Layer Racers and beat my score!', canvas.width / 2, 380);
+                
+                // Convert canvas to image and trigger download
+                const dataURL = canvas.toDataURL('image/jpeg', 0.9);
+                const link = document.createElement('a');
+                link.download = `aligned-layer-racers-${els.username.value}-${Game.score}.jpg`;
+                link.href = dataURL;
+                link.click();
+            };
+        }
 
         function switchPage(from, to) {
             from.classList.remove('active');
