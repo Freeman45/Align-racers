@@ -174,14 +174,14 @@
             box-shadow: 0 0 50px rgba(0,0,0,0.8);
         }
 
-        /* The moving road effect */
+        /* The moving road effect - REDUCED WIDTH */
         .road-container {
             position: absolute;
             top: 0;
             left: 50%;
             transform: translateX(-50%);
             width: 100%; /* Responsive width */
-            max-width: 500px;
+            max-width: 350px; /* Reduced from 500px to 350px */
             height: 100%;
             background-image: url('road.jpg');
             background-size: cover;
@@ -201,7 +201,7 @@
             animation: scrollRoad 0.8s linear infinite; /* Adjusted via JS for speed */
         }
         
-        /* Water effects on sides */
+        /* Water effects on sides - ADJUSTED FOR NARROWER ROAD */
         .water-side {
             position: absolute;
             top: 0;
@@ -212,8 +212,8 @@
             opacity: 0.8;
             z-index: 1;
         }
-        .water-left { right: 50%; margin-right: 250px; }
-        .water-right { left: 50%; margin-left: 250px; }
+        .water-left { right: 50%; margin-right: 175px; } /* Adjusted from 250px to 175px */
+        .water-right { left: 50%; margin-left: 175px; } /* Adjusted from 250px to 175px */
         
         .water-overlay {
             position: absolute;
@@ -462,6 +462,14 @@
             display: block;
         }
 
+        /* Credit line */
+        .credit {
+            margin-top: 20px;
+            font-size: 0.8rem;
+            color: #666;
+            text-align: center;
+        }
+
     </style>
 </head>
 <body>
@@ -499,6 +507,10 @@
             
             <div style="margin-top: 20px; font-size: 0.8rem; color: #666;">
                 <i class="fas fa-fingerprint"></i> Slide finger to steer
+            </div>
+            
+            <div class="credit">
+                Made by FreeGuyx247 <span style="color: var(--neon-green);">💚</span>
             </div>
         </div>
     </div>
@@ -681,22 +693,9 @@
             startGame();
         });
         
+        // Exit button now acts as a refresh button
         document.getElementById('menu-btn').addEventListener('click', () => {
-            // Reset the game over modal state
-            Game.gameOverModalActive = false;
-            
-            // Stop the game loop completely
-            Game.active = false;
-            if (Game.animationFrame) {
-                cancelAnimationFrame(Game.animationFrame);
-                Game.animationFrame = null;
-            }
-            
-            // Reset game state
-            resetGameState();
-            
-            // Switch back to intro page
-            switchPage(els.gameOver, els.intro);
+            location.reload(); // Refresh the page
         });
 
         // Play/Pause toggle
